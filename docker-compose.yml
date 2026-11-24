@@ -1,0 +1,28 @@
+services:
+  # 检索服务：RAG 向量检索（知识库内置在镜像里，无状态）
+  search:
+    build: .
+    command: python search_tool.py
+    ports:
+      - "8000:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.post('http://localhost:8000/search', json={'query': '测试 发热'}, timeout=5)"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # Web 界面：DeepSeek + 检索工具，历史会话持久化到本地目录
+  web:
+    build: .
+    command: python -m streamlit run app.py --server.port 8501 --server.headless true --server.address 0.0.0.0
+    env_file: .env                      # 注入 DEEPSEEK_API_KEY
+    environment:
+      - SEARCH_URL=http://search:8000/search   # 容器内通过服务名访问检索服务
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./conversations:/app/conversations      # 历史会话保存在宿主机
+    depends_on:
+      search:
+        condition: service_healthy

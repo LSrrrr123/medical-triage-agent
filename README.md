@@ -58,6 +58,18 @@ cd C:\Users\SuGuo\Desktop\PO1
 
 浏览器访问 http://localhost:8501 开始对话。命令行版运行 `agent.py`。
 
+## Docker 部署（推荐）
+
+```powershell
+docker compose up -d --build
+```
+
+- 网页：http://localhost:8501
+- 检索 API：http://localhost:8000
+- 向量库与 BGE 模型已打进镜像，无需额外构建步骤
+- 历史会话保存在宿主机 `conversations/` 目录
+- 停止：`docker compose down`
+
 ## 检索 API
 
 `POST http://127.0.0.1:8000/search`

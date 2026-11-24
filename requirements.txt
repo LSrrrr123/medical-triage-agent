@@ -6,3 +6,5 @@ sentence-transformers
 fastapi
 uvicorn
 httpx
+langchain-openai
+streamlit

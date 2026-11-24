@@ -63,4 +63,5 @@ def search(req: SearchReq):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    # 绑定 0.0.0.0：本地和 Docker 容器内均可访问
+    uvicorn.run(app, host="0.0.0.0", port=8000)

@@ -8,7 +8,7 @@ from langchain_core.messages import SystemMessage, HumanMessage, ToolMessage
 
 BASE = Path(__file__).parent
 PROMPT_FILE = BASE / "system_prompt_triage_agent_v1.md"
-SEARCH_URL = "http://127.0.0.1:8000/search"
+SEARCH_URL = os.environ.get("SEARCH_URL", "http://127.0.0.1:8000/search")  # Docker 内可覆盖
 
 
 # ---------- 0. 读取项目 .env 文件（每行一条 key=value） ----------
