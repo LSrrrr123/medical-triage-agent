@@ -1,0 +1,8 @@
+# 依赖清单
+# 注意：torch 需先单独安装 CPU 版（本项目数据量小，CPU 足够；以后要 GPU 再重装 CUDA 版）
+# 安装命令：pip install torch --index-url https://download.pytorch.org/whl/cpu
+chromadb
+sentence-transformers
+fastapi
+uvicorn
+httpx
