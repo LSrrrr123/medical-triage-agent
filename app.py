@@ -183,11 +183,20 @@ with st.sidebar:
             continue
         st.markdown(f"**{label}**")
         for cid, title in items:
+            c1, c2 = st.columns([4, 1])
             active = cid == st.session_state.get("current_id")
-            if st.button(("▸ " if active else "") + title, key=f"conv_{cid}", use_container_width=True):
+            if c1.button(("▸ " if active else "") + title, key=f"conv_{cid}", use_container_width=True):
                 save_current()
                 load_conv(cid)
                 st.rerun()
+            with c2.popover("🗑", use_container_width=True):
+                st.markdown("删除该会话？")
+                if st.button("确认删除", key=f"del_{cid}", use_container_width=True):
+                    (CONV_DIR / f"{cid}.json").unlink(missing_ok=True)
+                    if st.session_state.get("current_id") == cid:
+                        st.session_state.current_id = None
+                        st.session_state.messages = [SystemMessage(content=SYSTEM_PROMPT)]
+                    st.rerun()
 
 
 # ---------- 主区 ----------
