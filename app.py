@@ -134,8 +134,20 @@ def handle_input(text, rag_on):
     try:
         llm_tools = get_llm_rag(rag_on)
         for _ in range(3):
-            resp = llm_tools.invoke(messages)
-            if resp.tool_calls:
+            # 流式生成；一旦出现工具调用，改非流式获取完整参数
+            full = None
+            call_tool = False
+            placeholder = st.empty()
+            for chunk in llm_tools.stream(messages):
+                full = chunk if full is None else full + chunk
+                if chunk.tool_call_chunks:
+                    call_tool = True
+                    break
+                if chunk.content:
+                    placeholder.markdown(full.content)
+            if call_tool:
+                placeholder.empty()
+                resp = llm_tools.invoke(messages)
                 messages.append(resp)
                 for tc in resp.tool_calls:
                     try:
@@ -145,9 +157,9 @@ def handle_input(text, rag_on):
                         data = {"error": f"检索工具调用失败: {e}", "results": []}
                     content = json.dumps(data.get("results", []), ensure_ascii=False)
                     messages.append(ToolMessage(content=content, tool_call_id=tc["id"]))
-            else:
-                messages.append(resp)
-                break
+                continue
+            messages.append(full)
+            break
     except Exception as e:
         messages.append(AIMessage(content=f"抱歉，服务暂时不可用（{e}），请稍后重试。"))
     save_current()

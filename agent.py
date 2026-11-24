@@ -91,16 +91,26 @@ def chat():
 
         # 单轮内 LLM 可能多次调用工具，最多 3 次防死循环
         for _ in range(3):
-            resp = llm_with_tools.invoke(messages)
-            if resp.tool_calls:
+            # 流式生成；一旦出现工具调用，改非流式获取完整参数
+            full = None
+            call_tool = False
+            for chunk in llm_with_tools.stream(messages):
+                full = chunk if full is None else full + chunk
+                if chunk.tool_call_chunks:
+                    call_tool = True
+                    break
+                if chunk.content:
+                    print(chunk.content, end="", flush=True)
+            if call_tool:
+                resp = llm_with_tools.invoke(messages)
                 messages.append(resp)
                 for tc in resp.tool_calls:
                     result = call_search(tc["args"])
                     messages.append(ToolMessage(content=result, tool_call_id=tc["id"]))
-            else:
-                messages.append(resp)
-                print(f"\n助手: {resp.content}\n")
-                break
+                continue
+            messages.append(full)
+            print("\n")
+            break
         else:
             print("\n助手: 检索次数过多，请先回答我上面的问题，我们再继续。\n")
 
