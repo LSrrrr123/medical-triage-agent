@@ -123,6 +123,34 @@ if "messages" not in st.session_state:
     st.session_state.messages = [SystemMessage(content=SYSTEM_PROMPT)]
 if "current_id" not in st.session_state:
     st.session_state.current_id = None
+if "pending" not in st.session_state:
+    st.session_state.pending = None
+
+
+def handle_input(text, rag_on):
+    """统一处理用户输入：追加消息、调 LLM（含工具循环）、存档。示例按钮与输入框共用。"""
+    messages = st.session_state.messages
+    messages.append(HumanMessage(content=text))
+    try:
+        llm_tools = get_llm_rag(rag_on)
+        for _ in range(3):
+            resp = llm_tools.invoke(messages)
+            if resp.tool_calls:
+                messages.append(resp)
+                for tc in resp.tool_calls:
+                    try:
+                        r = httpx.post(SEARCH_URL, json=tc["args"], timeout=15)
+                        data = r.json()
+                    except Exception as e:
+                        data = {"error": f"检索工具调用失败: {e}", "results": []}
+                    content = json.dumps(data.get("results", []), ensure_ascii=False)
+                    messages.append(ToolMessage(content=content, tool_call_id=tc["id"]))
+            else:
+                messages.append(resp)
+                break
+    except Exception as e:
+        messages.append(AIMessage(content=f"抱歉，服务暂时不可用（{e}），请稍后重试。"))
+    save_current()
 
 
 # ---------- 侧边栏：logo + 开启新对话 + 历史会话 ----------
@@ -170,7 +198,7 @@ if human_count == 0:
     ]
     for col, (label, text) in zip(cols, examples):
         if col.button(f"{label}\n\n{text}", use_container_width=True, key=f"ex_{label}"):
-            st.session_state.messages.append(HumanMessage(content=text))
+            st.session_state.pending = text
             st.session_state.current_id = new_id()
             st.rerun()
 else:
@@ -189,32 +217,17 @@ with col1:
     rag_on = st.toggle("智能搜索", value=True, help="开启后自动检索症状知识库（RAG）")
 
 user_input = st.chat_input("给 门诊分诊助手 发送消息")
-
 if user_input:
-    messages = st.session_state.messages
-    messages.append(HumanMessage(content=user_input))
+    st.session_state.pending = user_input
     if st.session_state.current_id is None:
         st.session_state.current_id = new_id()
-    with st.chat_message("user"):
-        st.markdown(user_input)
+    st.rerun()
+
+# 统一处理待回复输入（示例按钮 / 输入框共用）
+if st.session_state.pending:
+    text = st.session_state.pending
+    st.session_state.pending = None
     with st.chat_message("assistant"):
         with st.spinner("正在分析……"):
-            llm_tools = get_llm_rag(rag_on)
-            for _ in range(3):
-                resp = llm_tools.invoke(messages)
-                if resp.tool_calls:
-                    messages.append(resp)
-                    for tc in resp.tool_calls:
-                        try:
-                            r = httpx.post(SEARCH_URL, json=tc["args"], timeout=15)
-                            data = r.json()
-                        except Exception as e:
-                            data = {"error": f"检索工具调用失败: {e}", "results": []}
-                        content = json.dumps(data.get("results", []), ensure_ascii=False)
-                        messages.append(ToolMessage(content=content, tool_call_id=tc["id"]))
-                else:
-                    messages.append(resp)
-                    break
-            st.markdown(resp.content)
-    save_current()
+            handle_input(text, rag_on)
     st.rerun()
